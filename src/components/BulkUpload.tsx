@@ -56,10 +56,10 @@ export const BulkUpload = () => {
         
         // Map Excel columns to our API format
         const payload = {
-          pharmacy_id,
-          barcode: row['Barcode'] ? parseInt(row['Barcode'].toString().replace(/\D/g, '')) : 0,
-          drug_name_en: row['Drug Name EN'],
-          drug_name_ar: row['Drug Name AR'],
+          pharmacy_id: pharmacy_id,
+          barcode: row['Barcode'] ? row['Barcode'].toString().replace(/\D/g, '') : "0",
+          english_name: row['Drug Name EN'],
+          arabic_name: row['Drug Name AR'],
           expiry_date: row['Expiry Date (YYYY-MM-DD)'],
           discount: row['Discount %'],
           quantity: row['Quantity'],

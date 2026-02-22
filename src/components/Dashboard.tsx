@@ -65,39 +65,54 @@ export const Dashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Fetching from Inventory Offers...');
+      console.log('Fetching from inventory_offers...');
       // Fetch Offers for this pharmacy
       const { data: offers, count: offersCount, error: offersError } = await supabase
-        .from('"Inventory Offers"')
-        .select('*', { count: 'exact' })
-        .eq('Pharmacy ID', pharmacy_id);
+        .from('inventory_offers')
+        .select('arabic_name, english_name, pharmacy_id, expiry_date, price, quantity, barcode, discount, created_at, id', { count: 'exact' })
+        .eq('pharmacy_id', pharmacy_id)
+        .order('created_at', { ascending: false });
 
-      if (offersError) throw offersError;
+      if (offersError) {
+        console.error('inventory_offers Fetch Error:', offersError.message, offersError.details, offersError.hint);
+        throw offersError;
+      }
+      console.log('inventory_offers Fetch Success:', offers?.length, 'items');
 
-      console.log('Fetching from Inventory Requests...');
+      console.log('Fetching from inventory_requests...');
       // Fetch Requests for this pharmacy
       const { data: requests, count: requestsCount, error: requestsError } = await supabase
-        .from('"Inventory Requests"')
-        .select('*', { count: 'exact' })
-        .eq('Pharmacy ID', pharmacy_id);
+        .from('inventory_requests')
+        .select('arabic_name, english_name, pharmacy_id, quantity, barcode, created_at, id', { count: 'exact' })
+        .eq('pharmacy_id', pharmacy_id)
+        .order('created_at', { ascending: false });
 
-      if (requestsError) throw requestsError;
+      if (requestsError) {
+        console.error('inventory_requests Fetch Error:', requestsError.message, requestsError.details, requestsError.hint);
+        throw requestsError;
+      }
+      console.log('inventory_requests Fetch Success:', requests?.length, 'items');
 
       // Calculate stats
       const totalOffers = offersCount || 0;
       const totalRequests = requestsCount || 0;
       const totalOffersValue = (offers || []).reduce((sum, item) => {
         const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
-        const qty = typeof item.Quantity === 'number' ? item.Quantity : parseInt(item.Quantity) || 0;
+        const qty = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0;
         return sum + (price * qty);
       }, 0);
       
       // For "Sold Items", we'll check for status='sold'
-      const { count: soldCount } = await supabase
-        .from('"Inventory Offers"')
+      console.log('Fetching sold count from inventory_offers...');
+      const { count: soldCount, error: soldError } = await supabase
+        .from('inventory_offers')
         .select('*', { count: 'exact', head: true })
-        .eq('Pharmacy ID', pharmacy_id)
+        .eq('pharmacy_id', pharmacy_id)
         .eq('status', 'sold');
+
+      if (soldError) {
+        console.warn('Sold items fetch warning:', soldError.message);
+      }
 
       setStats({
         totalOffers,
@@ -205,14 +220,14 @@ export const Dashboard = () => {
                       {item.type === 'offer' ? <Package size={20} /> : <ShoppingCart size={20} />}
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-900">{item["English name"]}</p>
+                      <p className="font-semibold text-slate-900">{item.english_name}</p>
                       <p className="text-xs text-slate-500">
                         {new Date(item.created_at).toLocaleDateString()} • {item.type === 'offer' ? 'New Offer' : 'New Request'}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-slate-900">{item.price ? formatCurrency(item.price) : `${item.Quantity} units`}</p>
+                    <p className="font-bold text-slate-900">{item.price ? formatCurrency(item.price) : `${item.quantity} units`}</p>
                     <p className="text-[10px] text-emerald-600 font-bold uppercase">Active</p>
                   </div>
                 </div>

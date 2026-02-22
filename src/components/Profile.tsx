@@ -16,7 +16,7 @@ export const Profile = () => {
       city: parsed.city || '',
       address: parsed.address || '',
       license_no: parsed.license_no || '',
-      telegram_id: parsed.telegram_id || '',
+      telegram: parsed.telegram || '',
       profile_pic: parsed.profile_pic || ''
     };
   });
@@ -38,7 +38,7 @@ export const Profile = () => {
             pharmacy_id,
             phone: profile.phone.toString().replace(/\D/g, '') ? parseInt(profile.phone.toString().replace(/\D/g, '')) : 0,
             license_no: profile.license_no.toString().replace(/\D/g, '') ? parseInt(profile.license_no.toString().replace(/\D/g, '')) : 0,
-            telegram_id: profile.telegram_id.toString().replace(/\D/g, '') ? parseInt(profile.telegram_id.toString().replace(/\D/g, '')) : 0
+            telegram: profile.telegram
           } 
         }),
       });
@@ -170,8 +170,8 @@ export const Profile = () => {
                   <div className="relative">
                     <Send className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
-                      value={profile.telegram_id}
-                      onChange={(e) => setProfile({ ...profile, telegram_id: e.target.value })}
+                      value={profile.telegram}
+                      onChange={(e) => setProfile({ ...profile, telegram: e.target.value })}
                       className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                     />
                   </div>

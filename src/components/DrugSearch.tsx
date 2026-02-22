@@ -46,20 +46,20 @@ export const DrugSearch = ({ onSelect, className }: DrugSearchProps) => {
         const { data, error } = await supabase
           .from('Master')
           .select('*')
-          .or(`"Arabic Name".ilike.%${query}%,"English name".ilike.%${query}%`)
+          .or(`arabic_name.ilike.%${query}%,english_name.ilike.%${query}%`)
           .limit(10);
 
         console.log('Supabase search results:', data);
         if (error) throw error;
 
-        // Map the results to our Drug type since we are now selecting '*'
+        // Map the results to our Drug type
         const mappedData = (data || []).map((item: any) => ({
           id: item.id,
-          barcode: item['Item Barcode'],
-          price: item['Price'],
+          barcode: item.barcode,
+          price: item.price,
           manufacturer: item.manufacturer,
-          name_en: item['English name'],
-          name_ar: item['Arabic Name']
+          name_en: item.english_name,
+          name_ar: item.arabic_name
         }));
 
         setResults(mappedData);

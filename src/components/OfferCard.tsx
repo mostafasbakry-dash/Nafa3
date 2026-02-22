@@ -16,7 +16,7 @@ interface OfferCardProps {
 export const OfferCard = ({ offer, onAction, actionLabel, isOwner }: OfferCardProps) => {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === 'ar';
-  const isNearExpiry = new Date(offer["Expiry date"]).getTime() - new Date().getTime() < 1000 * 60 * 60 * 24 * 90; // 90 days
+  const isNearExpiry = new Date(offer.expiry_date).getTime() - new Date().getTime() < 1000 * 60 * 60 * 24 * 90; // 90 days
 
   return (
     <div className={cn(
@@ -27,7 +27,7 @@ export const OfferCard = ({ offer, onAction, actionLabel, isOwner }: OfferCardPr
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors">
-              {isRtl ? offer["Arabic Name"] : offer["English name"]}
+              {isRtl ? offer.arabic_name : offer.english_name}
             </h3>
             <p className="text-xs font-mono text-slate-400 mt-1">{offer.barcode}</p>
           </div>
@@ -48,7 +48,7 @@ export const OfferCard = ({ offer, onAction, actionLabel, isOwner }: OfferCardPr
             <Calendar size={16} className="text-slate-400" />
             <div className="flex flex-col">
               <span className="text-[10px] uppercase text-slate-400 font-bold">{t('expiry_date')}</span>
-              <span className="text-sm font-medium">{format(new Date(offer["Expiry date"]), 'MMM yyyy')}</span>
+              <span className="text-sm font-medium">{format(new Date(offer.expiry_date), 'MMM yyyy')}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 text-slate-600">
@@ -68,7 +68,7 @@ export const OfferCard = ({ offer, onAction, actionLabel, isOwner }: OfferCardPr
                 <span className="text-sm font-semibold text-slate-800">{offer.pharmacy_name}</span>
                 <div className="flex items-center gap-1 text-xs text-slate-500">
                   <MapPin size={12} />
-                  <span>{offer.city}, {offer.pharmacy_address}</span>
+                  <span>{offer.pharmacies?.city}, {offer.pharmacy_address}</span>
                 </div>
               </div>
             </div>

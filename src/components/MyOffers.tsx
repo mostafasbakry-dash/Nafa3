@@ -33,17 +33,21 @@ export const MyOffers = () => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Fetching from Inventory Offers...');
+      console.log('Fetching from inventory_offers...');
       const supabase = getSupabase();
       if (!supabase) return;
 
       const { data, error: fetchError } = await supabase
-        .from('"Inventory Offers"')
-        .select('*')
-        .eq('Pharmacy ID', pharmacy_id)
-        .order('Expiry date', { ascending: true });
+        .from('inventory_offers')
+        .select('arabic_name, english_name, pharmacy_id, expiry_date, price, quantity, barcode, discount, created_at, id')
+        .eq('pharmacy_id', pharmacy_id)
+        .order('created_at', { ascending: false });
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('MyOffers Fetch Error:', fetchError.message, fetchError.details, fetchError.hint);
+        throw fetchError;
+      }
+      console.log('MyOffers Fetch Success:', data?.length, 'items');
       setOffers(data || []);
     } catch (err) {
       console.error('Fetch Offers Error:', err);
@@ -81,14 +85,13 @@ export const MyOffers = () => {
         : formData.expiry_date;
 
       const payload = {
-        ...formData,
-        "Expiry date": isoExpiryDate,
-        "Pharmacy ID": pharmacy_id,
+        expiry_date: isoExpiryDate,
+        pharmacy_id: pharmacy_id,
         drug_id: selectedDrug.id,
-        "English name": selectedDrug.name_en,
-        "Arabic Name": selectedDrug.name_ar,
-        barcode: selectedDrug.barcode ? parseInt(selectedDrug.barcode.toString().replace(/\D/g, '')) : 0,
-        Quantity: formData.quantity,
+        english_name: selectedDrug.name_en,
+        arabic_name: selectedDrug.name_ar,
+        barcode: selectedDrug.barcode ? selectedDrug.barcode.toString().replace(/\D/g, '') : "0",
+        quantity: formData.quantity,
         price: formData.price,
         discount: formData.discount
       };
@@ -174,25 +177,25 @@ export const MyOffers = () => {
                   <tr key={offer.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-900">{offer["English name"]}</span>
+                        <span className="font-bold text-slate-900">{offer.english_name}</span>
                         <span className="text-xs text-slate-500">{offer.barcode}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={cn(
                         "px-2 py-1 rounded text-xs font-bold",
-                        new Date(offer["Expiry date"]).getTime() - new Date().getTime() < 1000 * 60 * 60 * 24 * 90
+                        new Date(offer.expiry_date).getTime() - new Date().getTime() < 1000 * 60 * 60 * 24 * 90
                           ? "bg-orange-100 text-orange-700"
                           : "bg-slate-100 text-slate-700"
                       )}>
-                        {format(new Date(offer["Expiry date"]), 'MMM yyyy')}
+                        {format(new Date(offer.expiry_date), 'MMM yyyy')}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-bold text-primary">{offer.discount}%</span>
                     </td>
                     <td className="px-6 py-4 font-bold">{offer.price} {t('egp')}</td>
-                    <td className="px-6 py-4">{offer.Quantity}</td>
+                    <td className="px-6 py-4">{offer.quantity}</td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
                         <button 

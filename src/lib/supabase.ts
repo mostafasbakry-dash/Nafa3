@@ -15,6 +15,10 @@ export const getSupabase = () => {
     return null;
   }
 
-  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+    db: {
+      schema: 'public'
+    }
+  });
   return supabaseInstance;
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Filter, SlidersHorizontal, MapPin, Percent, X, Loader2 } from 'lucide-react';
+import { Search, Filter, SlidersHorizontal, MapPin, Percent, X, Loader2, Phone, MessageSquare, Building, ExternalLink } from 'lucide-react';
 import { Offer, Request as MarketRequest, EGYPT_CITIES } from '@/src/types';
 import { OfferCard } from '@/src/components/OfferCard';
 import { cn, getDistance } from '@/src/lib/utils';
@@ -15,6 +15,7 @@ export const Marketplace = () => {
   const [selectedCity, setSelectedCity] = useState('');
   const [minDiscount, setMinDiscount] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [error, setError] = useState<any>(null);
 
   const userProfile = JSON.parse(localStorage.getItem('pharmacy_profile') || '{}');
@@ -24,23 +25,29 @@ export const Marketplace = () => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Fetching from Inventory Offers...');
+      console.log('Fetching from inventory_offers...');
       const supabase = getSupabase();
       if (!supabase) return;
 
       const { data, error: fetchError } = await supabase
-        .from('"Inventory Offers"')
-        .select('*')
+        .from('inventory_offers')
+        .select('*, pharmacies(id, name, phone, city, address, telegram)')
         .order('created_at', { ascending: false });
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('Marketplace Fetch Error:', fetchError.message, fetchError.details, fetchError.hint);
+        throw fetchError;
+      }
+      console.log('Marketplace Offers Fetch Success:', data?.length, 'items');
 
       const allOffers = data || [];
 
       // Sort by proximity to user's city
       const sorted = [...allOffers].sort((a, b) => {
-        const distA = getDistance(userProfile.city, a.city);
-        const distB = getDistance(userProfile.city, b.city);
+        const cityA = a.pharmacies?.city || '';
+        const cityB = b.pharmacies?.city || '';
+        const distA = getDistance(userProfile.city, cityA);
+        const distB = getDistance(userProfile.city, cityB);
         return distA - distB;
       });
 
@@ -65,14 +72,14 @@ export const Marketplace = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(o => 
-        (o["English name"] || "").toLowerCase().includes(q) || 
-        (o["Arabic Name"] || "").includes(q) || 
+        (o.english_name || "").toLowerCase().includes(q) || 
+        (o.arabic_name || "").includes(q) || 
         (o.barcode || "").includes(q)
       );
     }
 
     if (selectedCity) {
-      result = result.filter(o => o.city === selectedCity);
+      result = result.filter(o => o.pharmacies?.city === selectedCity);
     }
 
     if (minDiscount > 0) {
@@ -176,7 +183,7 @@ export const Marketplace = () => {
               key={offer.id}
               offer={offer}
               actionLabel="Contact Pharmacy"
-              onAction={(o) => toast.success(`Contacting ${o.pharmacy_name}...`)}
+              onAction={(o) => setSelectedOffer(o)}
             />
           ))
         ) : (
@@ -189,6 +196,89 @@ export const Marketplace = () => {
           </div>
         )}
       </div>
+
+      {selectedOffer && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+            <div className="bg-primary p-6 text-white flex justify-between items-center">
+              <h2 className="text-xl font-bold">Pharmacy Details</h2>
+              <button 
+                onClick={() => setSelectedOffer(null)} 
+                className="hover:bg-white/20 p-1 rounded-lg"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-primary">
+                  <Building size={32} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">{selectedOffer.pharmacies?.name || selectedOffer.pharmacy_name}</h3>
+                  <p className="text-slate-500 flex items-center gap-1">
+                    <MapPin size={14} />
+                    {selectedOffer.pharmacies?.city || selectedOffer.city}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-slate-600">
+                      <Phone size={18} className="text-primary" />
+                      <span className="font-medium">{selectedOffer.pharmacies?.phone || 'Not provided'}</span>
+                    </div>
+                    {selectedOffer.pharmacies?.phone && (
+                      <a 
+                        href={`tel:${selectedOffer.pharmacies.phone}`}
+                        className="p-2 bg-white border border-slate-200 rounded-lg text-primary hover:bg-primary hover:text-white transition-all"
+                      >
+                        <Phone size={16} />
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-slate-600">
+                      <MessageSquare size={18} className="text-sky-500" />
+                      <span className="font-medium">
+                        {selectedOffer.pharmacies?.telegram ? `@${selectedOffer.pharmacies.telegram}` : 'Not provided'}
+                      </span>
+                    </div>
+                    {selectedOffer.pharmacies?.telegram && (
+                      <a 
+                        href={`https://t.me/${selectedOffer.pharmacies.telegram}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-white border border-slate-200 rounded-lg text-sky-500 hover:bg-sky-500 hover:text-white transition-all"
+                      >
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase px-1">Full Address</label>
+                  <p className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-slate-700 text-sm">
+                    {selectedOffer.pharmacies?.address || selectedOffer.pharmacy_address}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedOffer(null)}
+                className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

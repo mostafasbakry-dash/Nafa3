@@ -25,17 +25,21 @@ export const MyRequests = () => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Fetching from Inventory Requests...');
+      console.log('Fetching from inventory_requests...');
       const supabase = getSupabase();
       if (!supabase) return;
 
       const { data, error: fetchError } = await supabase
-        .from('"Inventory Requests"')
-        .select('*')
-        .eq('Pharmacy ID', pharmacy_id)
+        .from('inventory_requests')
+        .select('arabic_name, english_name, pharmacy_id, quantity, barcode, created_at, id')
+        .eq('pharmacy_id', pharmacy_id)
         .order('created_at', { ascending: false });
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('MyRequests Fetch Error:', fetchError.message, fetchError.details, fetchError.hint);
+        throw fetchError;
+      }
+      console.log('MyRequests Fetch Success:', data?.length, 'items');
       setRequests(data || []);
     } catch (err) {
       console.error('Fetch Requests Error:', err);
@@ -61,12 +65,12 @@ export const MyRequests = () => {
       const pharmacy_id = pharmacy_id_str ? parseInt(pharmacy_id_str) : 0;
       
       const payload = {
-        "Pharmacy ID": pharmacy_id,
+        pharmacy_id: pharmacy_id,
         drug_id: selectedDrug.id,
-        "English name": selectedDrug.name_en,
-        "Arabic Name": selectedDrug.name_ar,
-        barcode: selectedDrug.barcode ? parseInt(selectedDrug.barcode.toString().replace(/\D/g, '')) : 0,
-        Quantity: quantity
+        english_name: selectedDrug.name_en,
+        arabic_name: selectedDrug.name_ar,
+        barcode: selectedDrug.barcode ? selectedDrug.barcode.toString().replace(/\D/g, '') : "0",
+        quantity: quantity
       };
 
       const response = await fetch('https://n8n.srv1168218.hstgr.cloud/webhook/add-request', {
@@ -136,7 +140,7 @@ export const MyRequests = () => {
               <tr>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{t('drug')}</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{t('quantity')}</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{t('created_at')}</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Status</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">{t('actions')}</th>
               </tr>
             </thead>
@@ -146,13 +150,13 @@ export const MyRequests = () => {
                   <tr key={request.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-900">{request["English name"]}</span>
+                        <span className="font-bold text-slate-900">{request.english_name}</span>
                         <span className="text-xs text-slate-500">{request.barcode}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-bold">{request.Quantity}</td>
+                    <td className="px-6 py-4 font-bold">{request.quantity}</td>
                     <td className="px-6 py-4 text-slate-500 text-sm">
-                      {new Date(request.created_at).toLocaleDateString()}
+                      Active
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">

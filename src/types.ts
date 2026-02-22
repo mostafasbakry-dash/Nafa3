@@ -19,34 +19,41 @@ export interface PharmacyProfile {
   address: string;
   license_no: string;
   email: string;
-  telegram_id: string;
+  telegram: string;
   profile_pic?: string;
 }
 
 export interface Offer {
   id: string;
-  "Pharmacy ID": string;
+  pharmacy_id: string;
   drug_id: string;
-  "English name": string;
-  "Arabic Name": string;
+  english_name: string;
+  arabic_name: string;
   barcode: string;
-  "Expiry date": string;
+  expiry_date: string;
   discount: number;
   price: number;
-  Quantity: number;
-  city: string;
+  quantity: number;
   pharmacy_name: string;
   pharmacy_address: string;
   created_at: string;
+  pharmacies?: {
+    id: string;
+    city: string;
+    phone?: string;
+    name?: string;
+    address?: string;
+    telegram?: string;
+  };
 }
 
 export interface Request {
   id: string;
-  "Pharmacy ID": string;
+  pharmacy_id: string;
   drug_id: string;
-  "English name": string;
-  "Arabic Name": string;
+  english_name: string;
+  arabic_name: string;
   barcode: string;
-  Quantity: number;
+  quantity: number;
   created_at: string;
 }
