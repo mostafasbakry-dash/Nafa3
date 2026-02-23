@@ -31,7 +31,7 @@ export const Marketplace = () => {
 
       const { data, error: fetchError } = await supabase
         .from('inventory_offers')
-        .select('*, pharmacies(id, pharmacy_name, phone, city, address, telegram)')
+        .select('*, pharmacies(pharmacy_id, pharmacy_name, phone, city, address, telegram)')
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -41,6 +41,13 @@ export const Marketplace = () => {
       console.log('Marketplace Offers Fetch Success:', data?.length, 'items');
 
       const allOffers = data || [];
+
+      // Null check logging for pharmacies
+      allOffers.forEach(offer => {
+        if (!offer.pharmacies) {
+          console.warn(`Offer ${offer.id} has no joined pharmacy data. pharmacy_id: ${offer.pharmacy_id}`);
+        }
+      });
 
       // Sort by proximity to user's city
       const sorted = [...allOffers].sort((a, b) => {

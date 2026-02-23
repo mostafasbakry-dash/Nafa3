@@ -38,7 +38,7 @@ export interface Offer {
   pharmacy_address: string;
   created_at: string;
   pharmacies?: {
-    id: string;
+    pharmacy_id: string;
     city: string;
     phone?: string;
     pharmacy_name?: string;
