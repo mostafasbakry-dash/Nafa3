@@ -26,7 +26,7 @@ const resources = {
       "address": "Address",
       "phone": "Phone",
       "license_no": "License No",
-      "telegram_id": "Telegram ID",
+      "telegram": "Telegram",
       "save": "Save",
       "cancel": "Cancel",
       "edit": "Edit",
@@ -46,7 +46,12 @@ const resources = {
       "success_added": "Added successfully",
       "error_generic": "Something went wrong",
       "city_placeholder": "Select City",
-      "all_cities": "All Cities"
+      "all_cities": "All Cities",
+      "arabic_name": "Arabic Name",
+      "english_name": "English Name",
+      "barcode": "Barcode",
+      "quantity": "Quantity",
+      "price": "Price"
     }
   },
   ar: {
@@ -72,7 +77,7 @@ const resources = {
       "address": "العنوان",
       "phone": "رقم الهاتف",
       "license_no": "رقم الترخيص",
-      "telegram_id": "معرف تليجرام",
+      "telegram": "تليجرام",
       "save": "حفظ",
       "cancel": "إلغاء",
       "edit": "تعديل",
@@ -92,7 +97,12 @@ const resources = {
       "success_added": "تمت الإضافة بنجاح",
       "error_generic": "حدث خطأ ما",
       "city_placeholder": "اختر المدينة",
-      "all_cities": "كل المدن"
+      "all_cities": "كل المدن",
+      "arabic_name": "اسم الدواء بالعربي",
+      "english_name": "اسم الدواء بالإنجليزي",
+      "barcode": "الباركود",
+      "quantity": "الكمية",
+      "price": "السعر"
     }
   }
 };

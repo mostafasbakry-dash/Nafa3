@@ -78,14 +78,8 @@ export const MyOffers = () => {
       const pharmacy_id_str = localStorage.getItem('pharmacy_id');
       const pharmacy_id = pharmacy_id_str ? parseInt(pharmacy_id_str) : 0;
       
-      // Ensure ISO date format (YYYY-MM-DD)
-      // If input type="month" gives "YYYY-MM", we append "-01"
-      const isoExpiryDate = formData.expiry_date.length === 7 
-        ? `${formData.expiry_date}-01` 
-        : formData.expiry_date;
-
       const payload = {
-        expiry_date: isoExpiryDate,
+        expiry_date: formData.expiry_date,
         pharmacy_id: pharmacy_id,
         drug_id: selectedDrug.id,
         english_name: selectedDrug.name_en,
@@ -270,7 +264,7 @@ export const MyOffers = () => {
                     
                     <div className="grid grid-cols-1 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">English Name</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">{t('english_name')}</label>
                         <input 
                           disabled 
                           value={selectedDrug.name_en || ''} 
@@ -278,7 +272,7 @@ export const MyOffers = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">Arabic Name</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">{t('arabic_name')}</label>
                         <input 
                           disabled 
                           value={selectedDrug.name_ar || ''} 
@@ -286,7 +280,7 @@ export const MyOffers = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">Barcode</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">{t('barcode')}</label>
                         <input 
                           disabled 
                           value={selectedDrug.barcode || ''} 

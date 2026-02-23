@@ -225,7 +225,7 @@ export const Registration = () => {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase px-1">{t('telegram_id')}</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase px-1">{t('telegram')}</label>
                     <div className="relative">
                       <Send className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input

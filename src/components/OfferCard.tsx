@@ -65,10 +65,14 @@ export const OfferCard = ({ offer, onAction, actionLabel, isOwner }: OfferCardPr
             <div className="flex items-start gap-2 text-slate-600">
               <Building2 size={16} className="text-slate-400 mt-1 shrink-0" />
               <div className="flex flex-col">
-                <span className="text-sm font-semibold text-slate-800">{offer.pharmacy_name}</span>
+                <span className="text-sm font-semibold text-slate-800">
+                  {offer.pharmacies?.pharmacy_name || offer.pharmacy_name || 'Unknown Pharmacy'}
+                </span>
                 <div className="flex items-center gap-1 text-xs text-slate-500">
                   <MapPin size={12} />
-                  <span>{offer.pharmacies?.city}, {offer.pharmacy_address}</span>
+                  <span>
+                    {offer.pharmacies?.city || offer.pharmacy_address?.split(',')[0] || 'Unknown Location'}
+                  </span>
                 </div>
               </div>
             </div>

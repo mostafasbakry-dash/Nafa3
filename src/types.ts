@@ -41,7 +41,7 @@ export interface Offer {
     id: string;
     city: string;
     phone?: string;
-    name?: string;
+    pharmacy_name?: string;
     address?: string;
     telegram?: string;
   };

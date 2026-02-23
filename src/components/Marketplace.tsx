@@ -31,7 +31,7 @@ export const Marketplace = () => {
 
       const { data, error: fetchError } = await supabase
         .from('inventory_offers')
-        .select('*, pharmacies(id, name, phone, city, address, telegram)')
+        .select('*, pharmacies(id, pharmacy_name, phone, city, address, telegram)')
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -216,10 +216,12 @@ export const Marketplace = () => {
                   <Building size={32} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">{selectedOffer.pharmacies?.name || selectedOffer.pharmacy_name}</h3>
+                  <h3 className="text-xl font-bold text-slate-900">
+                    {selectedOffer.pharmacies?.pharmacy_name || selectedOffer.pharmacy_name || 'Unknown Pharmacy'}
+                  </h3>
                   <p className="text-slate-500 flex items-center gap-1">
                     <MapPin size={14} />
-                    {selectedOffer.pharmacies?.city || selectedOffer.city}
+                    {selectedOffer.pharmacies?.city || selectedOffer.city || 'Unknown Location'}
                   </p>
                 </div>
               </div>

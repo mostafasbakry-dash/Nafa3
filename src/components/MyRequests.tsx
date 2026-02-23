@@ -221,7 +221,7 @@ export const MyRequests = () => {
                     
                     <div className="grid grid-cols-1 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">English Name</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">{t('english_name')}</label>
                         <input 
                           disabled 
                           value={selectedDrug.name_en || ''} 
@@ -229,7 +229,7 @@ export const MyRequests = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">Arabic Name</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">{t('arabic_name')}</label>
                         <input 
                           disabled 
                           value={selectedDrug.name_ar || ''} 
@@ -237,7 +237,7 @@ export const MyRequests = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">Barcode</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase px-1">{t('barcode')}</label>
                         <input 
                           disabled 
                           value={selectedDrug.barcode || ''} 

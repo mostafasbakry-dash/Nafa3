@@ -44,7 +44,7 @@ export const DrugSearch = ({ onSelect, className }: DrugSearchProps) => {
       setLoading(true);
       try {
         const { data, error } = await supabase
-          .from('Master')
+          .from('master')
           .select('*')
           .or(`arabic_name.ilike.%${query}%,english_name.ilike.%${query}%`)
           .limit(10);
