@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Mail, Lock, Loader2, Building } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { getSupabase } from '@/src/lib/supabase';
 
 export const Login = () => {
   const { t } = useTranslation();
@@ -15,22 +16,91 @@ export const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login form submitted', credentials);
     setLoading(true);
+    
+    const supabase = getSupabase();
+    if (!supabase) {
+      toast.error('Connection error');
+      setLoading(false);
+      return;
+    }
+
+    const normalizedEmail = credentials.email.trim().toLowerCase();
+
     try {
-      // In a real app, verify with backend
-      // Mocking successful login with a numeric ID
-      localStorage.setItem('pharmacy_id', '1234567890');
-      localStorage.setItem('pharmacy_profile', JSON.stringify({
-        id: '1234567890',
-        name: 'El Ezaby Pharmacy',
-        city: 'Cairo',
-        address: 'Nasr City'
-      }));
+      // 1. Email Verification: Check if email exists in 'credentials' table (case-insensitive)
+      console.log('Attempting login for:', normalizedEmail);
+      
+      const { data: credentialData, error: credentialError } = await supabase
+        .from('credentials')
+        .select('pharmacy_id, email')
+        .ilike('email', normalizedEmail)
+        .single();
+
+      // Debugging Log: Print exact error if any
+      if (credentialError) {
+        console.log('Supabase Credentials Error:', credentialError);
+      }
+
+      if (credentialError || !credentialData) {
+        // Professional multilingual message using i18n
+        toast.error(t('login_email_not_found'), {
+          duration: 8000,
+          position: 'top-center',
+          style: {
+            border: '1px solid #ef4444',
+            padding: '16px',
+            color: '#7f1d1d',
+            maxWidth: '500px',
+            textAlign: 'center',
+            fontWeight: '500',
+            lineHeight: '1.6'
+          },
+          iconTheme: {
+            primary: '#ef4444',
+            secondary: '#fff',
+          },
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 2. Proceed with login logic
+      // Since Supabase Auth isn't fully set up with these credentials yet in the code,
+      // we'll fetch the pharmacy profile to complete the mock login with REAL data from the DB.
+      const { data: profileData, error: profileError } = await supabase
+        .from('pharmacies')
+        .select('*')
+        .eq('pharmacy_id', credentialData.pharmacy_id)
+        .single();
+
+      if (profileError || !profileData) {
+        console.error('Profile fetch error:', profileError);
+        // Fallback to mock if profile not found but credentials exist
+        localStorage.setItem('pharmacy_id', credentialData.pharmacy_id.toString());
+        localStorage.setItem('pharmacy_profile', JSON.stringify({
+          id: credentialData.pharmacy_id.toString(),
+          name: 'Pharmacy User',
+          city: 'Cairo',
+          address: ''
+        }));
+      } else {
+        localStorage.setItem('pharmacy_id', profileData.pharmacy_id.toString());
+        localStorage.setItem('pharmacy_profile', JSON.stringify({
+          id: profileData.pharmacy_id.toString(),
+          name: profileData.pharmacy_name,
+          city: profileData.city,
+          address: profileData.address,
+          phone: profileData.phone,
+          telegram: profileData.telegram
+        }));
+      }
+
       toast.success('Welcome back!');
       navigate('/');
     } catch (err) {
-      toast.error('Invalid credentials');
+      console.error('Login error:', err);
+      toast.error('An error occurred during login');
     } finally {
       setLoading(false);
     }

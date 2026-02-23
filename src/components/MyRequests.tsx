@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, Plus, Trash2, Loader2, X, ShieldCheck } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Loader2, X, ShieldCheck, Edit2, PlusCircle, MinusCircle, AlertCircle, Info } from 'lucide-react';
 import { Request as MarketRequest, Drug } from '@/src/types';
 import { DrugSearch } from '@/src/components/DrugSearch';
 import { toast } from 'react-hot-toast';
 import { getSupabase } from '@/src/lib/supabase';
+import { cn } from '@/src/lib/utils';
 
 export const MyRequests = () => {
   const { t } = useTranslation();
@@ -14,6 +15,17 @@ export const MyRequests = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  
+  // New states for advanced management
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [showDeductActionModal, setShowDeductActionModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [quantityAction, setQuantityAction] = useState<'add' | 'deduct' | null>(null);
+  const [quantityValue, setQuantityValue] = useState(1);
+  const [editData, setEditData] = useState({ quantity: 1 });
+
   const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
   const [quantity, setQuantity] = useState(1);
 
@@ -93,17 +105,153 @@ export const MyRequests = () => {
   };
 
   const handleDeleteRequest = async (id: string) => {
-    console.log(`Delete Request clicked: ${id}`);
-    if (!window.confirm(t('confirm_delete'))) return;
+    const request = requests.find(r => r.id === id);
+    if (request) {
+      setSelectedRequest(request);
+      setShowCancelModal(true);
+    }
+  };
+
+  const archiveItem = async (request: any, quantity: number, actionType: 'بيع' | 'سحب') => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
     try {
-      // Deletion sync with n8n
-      await fetch(`https://n8n.srv1168218.hstgr.cloud/webhook/add-request?id=${id}`, {
-        method: 'DELETE',
-      });
-      fetchRequests();
-      toast.success(t('delete_success'));
+      const { error: archiveError } = await supabase
+        .from('sales_archive')
+        .insert([{
+          pharmacy_id: request.pharmacy_id,
+          arabic_name: request.arabic_name,
+          english_name: request.english_name,
+          barcode: request.barcode,
+          quantity: quantity,
+          price: 0, // Requests don't have price
+          discount: 0, // Requests don't have discount
+          created_at: new Date().toISOString(),
+          action_type: actionType
+        }]);
+
+      if (archiveError) throw archiveError;
+      return true;
+    } catch (err) {
+      console.error('Archive Error:', err);
+      toast.error('Failed to archive record');
+      return false;
+    }
+  };
+
+  const handleFullCancel = async (actionType: 'بيع' | 'سحب') => {
+    if (!selectedRequest) return;
+    setLoading(true);
+    try {
+      const success = await archiveItem(selectedRequest, selectedRequest.quantity, actionType);
+      if (success) {
+        const supabase = getSupabase();
+        if (supabase) {
+          const { error: deleteError } = await supabase
+            .from('inventory_requests')
+            .delete()
+            .eq('id', selectedRequest.id);
+          
+          if (deleteError) throw deleteError;
+          
+          toast.success('تم تحديث البيانات ونقل السجل للأرشيف بنجاح');
+          setShowCancelModal(false);
+          setSelectedRequest(null);
+          fetchRequests();
+        }
+      }
     } catch (err) {
       toast.error(t('error_generic'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateQuantity = async () => {
+    if (!selectedRequest || !quantityAction) return;
+    
+    if (quantityAction === 'add') {
+      setLoading(true);
+      try {
+        const supabase = getSupabase();
+        if (supabase) {
+          const newQty = selectedRequest.quantity + quantityValue;
+          const { error: updateError } = await supabase
+            .from('inventory_requests')
+            .update({ quantity: newQty })
+            .eq('id', selectedRequest.id);
+          
+          if (updateError) throw updateError;
+          
+          toast.success('تم تحديث الكمية بنجاح');
+          setShowQuantityModal(false);
+          setSelectedRequest(null);
+          fetchRequests();
+        }
+      } catch (err) {
+        toast.error(t('error_generic'));
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setShowQuantityModal(false);
+      setShowDeductActionModal(true);
+    }
+  };
+
+  const handleDeductArchive = async (actionType: 'بيع' | 'سحب') => {
+    if (!selectedRequest) return;
+    setLoading(true);
+    try {
+      const success = await archiveItem(selectedRequest, quantityValue, actionType);
+      if (success) {
+        const supabase = getSupabase();
+        if (supabase) {
+          const newQty = Math.max(0, selectedRequest.quantity - quantityValue);
+          
+          if (newQty === 0) {
+            await supabase.from('inventory_requests').delete().eq('id', selectedRequest.id);
+          } else {
+            await supabase.from('inventory_requests').update({ quantity: newQty }).eq('id', selectedRequest.id);
+          }
+          
+          toast.success('تم تحديث البيانات ونقل السجل للأرشيف بنجاح');
+          setShowDeductActionModal(false);
+          setSelectedRequest(null);
+          fetchRequests();
+        }
+      }
+    } catch (err) {
+      toast.error(t('error_generic'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRequest) return;
+    setLoading(true);
+    try {
+      const supabase = getSupabase();
+      if (supabase) {
+        const { error: updateError } = await supabase
+          .from('inventory_requests')
+          .update({ quantity: editData.quantity })
+          .eq('id', selectedRequest.id);
+        
+        if (updateError) throw updateError;
+        
+        toast.success('تم تحديث البيانات بنجاح');
+        setShowEditModal(false);
+        setSelectedRequest(null);
+        fetchRequests();
+      }
+    } catch (err) {
+      toast.error(t('error_generic'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -160,8 +308,32 @@ export const MyRequests = () => {
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
                         <button 
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setQuantityAction(null);
+                            setQuantityValue(1);
+                            setShowQuantityModal(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-indigo-500 transition-colors"
+                          title="Update Quantity"
+                        >
+                          <PlusCircle size={18} />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setEditData({ quantity: request.quantity });
+                            setShowEditModal(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-primary transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button 
                           onClick={() => handleDeleteRequest(request.id)}
                           className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                          title="Cancel"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -269,6 +441,160 @@ export const MyRequests = () => {
                 {loading ? <Loader2 className="animate-spin" /> : t('add_request')}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && selectedRequest && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+            <div className="bg-primary p-6 text-white flex justify-between items-center">
+              <h2 className="text-xl font-bold">{t('edit')}</h2>
+              <button onClick={() => setShowEditModal(false)} className="hover:bg-white/20 p-1 rounded-lg">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleEditRequest} className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">{t('quantity')}</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={editData.quantity}
+                  onChange={(e) => setEditData({ ...editData, quantity: parseInt(e.target.value) || 1 })}
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <button
+                disabled={loading}
+                className="w-full py-4 bg-primary hover:bg-primary-dark text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 mt-4"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : t('save')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Modal (Sold or Withdrawn) */}
+      {showCancelModal && selectedRequest && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center animate-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">هل تم البيع أم تم السحب؟</h2>
+            <p className="text-slate-500 mb-8">سيتم نقل هذا الطلب إلى الأرشيف</p>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => handleFullCancel('بيع')}
+                className="py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20"
+              >
+                تم البيع
+              </button>
+              <button
+                onClick={() => handleFullCancel('سحب')}
+                className="py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all"
+              >
+                تم السحب
+              </button>
+            </div>
+            <button 
+              onClick={() => setShowCancelModal(false)}
+              className="mt-6 text-slate-400 hover:text-slate-600 text-sm font-medium"
+            >
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Update Quantity Modal */}
+      {showQuantityModal && selectedRequest && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+            <div className="bg-primary p-6 text-white flex justify-between items-center">
+              <h2 className="text-xl font-bold">تحديث الكمية</h2>
+              <button onClick={() => setShowQuantityModal(false)} className="hover:bg-white/20 p-1 rounded-lg">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => setQuantityAction('add')}
+                  className={cn(
+                    "flex-1 py-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                    quantityAction === 'add' ? "border-primary bg-primary/5 text-primary" : "border-slate-100 text-slate-400"
+                  )}
+                >
+                  <PlusCircle size={32} />
+                  <span className="font-bold">إضافة</span>
+                </button>
+                <button
+                  onClick={() => setQuantityAction('deduct')}
+                  className={cn(
+                    "flex-1 py-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                    quantityAction === 'deduct' ? "border-primary bg-primary/5 text-primary" : "border-slate-100 text-slate-400"
+                  )}
+                >
+                  <MinusCircle size={32} />
+                  <span className="font-bold">خصم</span>
+                </button>
+              </div>
+
+              {quantityAction && (
+                <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">الكمية</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      max={quantityAction === 'deduct' ? selectedRequest.quantity : undefined}
+                      value={quantityValue}
+                      onChange={(e) => setQuantityValue(parseInt(e.target.value) || 1)}
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <button
+                    onClick={handleUpdateQuantity}
+                    className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20"
+                  >
+                    متابعة
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deduct Action Modal */}
+      {showDeductActionModal && selectedRequest && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center animate-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Info size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">هل تم البيع أم تم السحب؟</h2>
+            <p className="text-slate-500 mb-8">سيتم أرشفة {quantityValue} وحدة</p>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => handleDeductArchive('بيع')}
+                className="py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20"
+              >
+                تم البيع
+              </button>
+              <button
+                onClick={() => handleDeductArchive('سحب')}
+                className="py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all"
+              >
+                تم السحب
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -64,66 +64,62 @@ export const Dashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Fetching from inventory_offers...');
-      // Fetch Offers for this pharmacy
+      console.log('Fetching stats for pharmacy:', pharmacy_id_str);
+      
+      // 1. Fetch Offers
       const { data: offers, count: offersCount, error: offersError } = await supabase
         .from('inventory_offers')
         .select('*', { count: 'exact' })
-        .eq('pharmacy_id', pharmacy_id_str)
-        .order('created_at', { ascending: false });
+        .eq('pharmacy_id', pharmacy_id_str);
 
-      if (offersError) {
-        console.error('inventory_offers Fetch Error:', offersError.message, offersError.details, offersError.hint);
-      }
-      console.log('inventory_offers Fetch Success:', offers?.length, 'items');
+      if (offersError) console.error('inventory_offers Error:', offersError);
 
-      console.log('Fetching from inventory_requests...');
-      // Fetch Requests for this pharmacy
+      // 2. Fetch Requests
       const { data: requests, count: requestsCount, error: requestsError } = await supabase
         .from('inventory_requests')
         .select('*', { count: 'exact' })
-        .eq('pharmacy_id', pharmacy_id_str)
-        .order('created_at', { ascending: false });
+        .eq('pharmacy_id', pharmacy_id_str);
 
-      if (requestsError) {
-        console.error('inventory_requests Fetch Error:', requestsError.message, requestsError.details, requestsError.hint);
-      }
-      console.log('inventory_requests Fetch Success:', requests?.length, 'items');
+      if (requestsError) console.error('inventory_requests Error:', requestsError);
+
+      // 3. Fetch Sales Archive for Sold Items
+      const { data: archive, error: archiveError } = await supabase
+        .from('sales_archive')
+        .select('*')
+        .eq('pharmacy_id', pharmacy_id_str);
+
+      if (archiveError) console.error('sales_archive Error:', archiveError);
 
       // Calculate stats
       const totalOffers = offersCount || 0;
       const totalRequests = requestsCount || 0;
+      
+      // Total Value Calculation: sum(price * quantity) from inventory_offers
       const totalOffersValue = (offers || []).reduce((sum, item) => {
-        const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
-        const qty = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        const qty = Number(item.quantity) || 0;
         return sum + (price * qty);
       }, 0);
       
-      // For "Sold Items", we'll check for status='sold'
-      console.log('Fetching sold count from inventory_offers...');
-      const { count: soldCount, error: soldError } = await supabase
-        .from('inventory_offers')
-        .select('*', { count: 'exact', head: true })
-        .eq('pharmacy_id', pharmacy_id_str)
-        .eq('status', 'sold');
-
-      if (soldError) {
-        console.warn('Sold items fetch warning:', soldError.message);
-      }
+      // Sold Items Counter: sum(quantity) from sales_archive where action_type = 'بيع'
+      const soldItems = (archive || [])
+        .filter(item => item.action_type === 'بيع')
+        .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
       setStats({
         totalOffers,
         totalRequests,
         totalOffersValue,
-        soldItems: soldCount || 0
+        soldItems
       });
 
-      // Combine and sort for recent activity
+      // Combine and sort for recent activity (Offers, Requests, and Archive)
       const activity = [
         ...(offers || []).map(o => ({ ...o, type: 'offer' })),
-        ...(requests || []).map(r => ({ ...r, type: 'request' }))
+        ...(requests || []).map(r => ({ ...r, type: 'request' })),
+        ...(archive || []).map(a => ({ ...a, type: 'archive' }))
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 5);
+      .slice(0, 10); // Show more in the list
 
       setRecentActivity(activity);
     } catch (err) {
@@ -137,6 +133,24 @@ export const Dashboard = () => {
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'offer': return <Package size={20} />;
+      case 'request': return <ShoppingCart size={20} />;
+      case 'archive': return <TrendingUp size={20} />;
+      default: return <Package size={20} />;
+    }
+  };
+
+  const getActivityLabel = (item: any) => {
+    if (item.type === 'offer') return 'New Offer';
+    if (item.type === 'request') return 'New Request';
+    if (item.type === 'archive') {
+      return item.action_type === 'بيع' ? 'Item Sold' : 'Item Withdrawn';
+    }
+    return 'Activity';
+  };
 
   return (
     <div className="space-y-8">
@@ -213,19 +227,29 @@ export const Dashboard = () => {
               recentActivity.map((item, i) => (
                 <div key={i} className="p-4 border-b border-slate-100 last:border-0 flex items-center justify-between hover:bg-slate-50 transition-colors">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                      {item.type === 'offer' ? <Package size={20} /> : <ShoppingCart size={20} />}
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center",
+                      item.type === 'archive' ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-500"
+                    )}>
+                      {getActivityIcon(item.type)}
                     </div>
                     <div>
                       <p className="font-semibold text-slate-900">{item.english_name}</p>
                       <p className="text-xs text-slate-500">
-                        {new Date(item.created_at).toLocaleDateString()} • {item.type === 'offer' ? 'New Offer' : 'New Request'}
+                        {new Date(item.created_at).toLocaleDateString()} • {getActivityLabel(item)}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-slate-900">{item.price ? formatCurrency(item.price) : `${item.quantity} units`}</p>
-                    <p className="text-[10px] text-emerald-600 font-bold uppercase">Active</p>
+                    <p className="font-bold text-slate-900">
+                      {item.type === 'offer' || item.type === 'archive' ? formatCurrency(Number(item.price) || 0) : `${item.quantity} units`}
+                    </p>
+                    <p className={cn(
+                      "text-[10px] font-bold uppercase",
+                      item.type === 'archive' ? "text-amber-600" : "text-emerald-600"
+                    )}>
+                      {item.type === 'archive' ? item.action_type : 'Active'}
+                    </p>
                   </div>
                 </div>
               ))

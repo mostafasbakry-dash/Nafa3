@@ -33,12 +33,15 @@ export const Registration = () => {
       // Generate a unique numeric pharmacy_id based on timestamp
       const pharmacy_id = Math.floor(Date.now() / 1000);
       
+      const normalizedEmail = credentials.email.trim().toLowerCase();
+      
       const response = await fetch('https://n8n.srv1168218.hstgr.cloud/webhook/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           payload: { 
-            ...credentials, 
+            ...credentials,
+            email: normalizedEmail,
             pharmacy_id 
           } 
         }),
@@ -72,6 +75,9 @@ export const Registration = () => {
       const pharmacy_id_str = localStorage.getItem('temp_pharmacy_id');
       const pharmacy_id = pharmacy_id_str ? parseInt(pharmacy_id_str) : 0;
       
+      // Send data to n8n webhook to save profile and link with credentials
+      // n8n will use the email to find the existing record in the 'credentials' table 
+      // and update its 'pharmacy_id' to match the one generated during registration.
       const response = await fetch('https://n8n.srv1168218.hstgr.cloud/webhook/save-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,7 +88,7 @@ export const Registration = () => {
             phone: profile.phone.replace(/\D/g, '') ? parseInt(profile.phone.replace(/\D/g, '')) : 0,
             license_no: profile.license_no.replace(/\D/g, '') ? parseInt(profile.license_no.replace(/\D/g, '')) : 0,
             telegram: profile.telegram,
-            email: credentials.email 
+            email: credentials.email.trim().toLowerCase() // Ensure email is trimmed and lowercase for linkage
           } 
         }),
       });

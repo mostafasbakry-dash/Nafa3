@@ -51,7 +51,8 @@ const resources = {
       "english_name": "English Name",
       "barcode": "Barcode",
       "quantity": "Quantity",
-      "price": "Price"
+      "price": "Price",
+      "login_email_not_found": "We couldn't find an account with this email. We'd love to have you with us! Please register first via the \"Registration\" button on the home page to access the platform."
     }
   },
   ar: {
@@ -102,7 +103,8 @@ const resources = {
       "english_name": "اسم الدواء بالإنجليزي",
       "barcode": "الباركود",
       "quantity": "الكمية",
-      "price": "السعر"
+      "price": "السعر",
+      "login_email_not_found": "نعتذر منك، يبدو أن هذا البريد الإلكتروني غير مسجل لدينا حالياً. يسعدنا انضمامك إلينا عبر إنشاء حساب جديد أولاً من خلال زر \"التسجيل\" (Registration) في الصفحة الرئيسية."
     }
   }
 };

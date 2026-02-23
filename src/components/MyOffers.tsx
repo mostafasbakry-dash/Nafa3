@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Package, Plus, Trash2, Edit2, Loader2, AlertCircle, X, ShieldCheck, Info } from 'lucide-react';
+import { Package, Plus, Trash2, Edit2, Loader2, AlertCircle, X, ShieldCheck, Info, MinusCircle, PlusCircle, CheckCircle2 } from 'lucide-react';
 import { Offer, Drug } from '@/src/types';
 import { DrugSearch } from '@/src/components/DrugSearch';
 import { toast } from 'react-hot-toast';
@@ -17,6 +17,16 @@ export const MyOffers = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  
+  // New states for advanced management
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [showDeductActionModal, setShowDeductActionModal] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [quantityAction, setQuantityAction] = useState<'add' | 'deduct' | null>(null);
+  const [quantityValue, setQuantityValue] = useState(1);
+  const [editData, setEditData] = useState({ price: 0, discount: 0 });
   const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
   const [formData, setFormData] = useState({
     expiry_date: '',
@@ -109,18 +119,158 @@ export const MyOffers = () => {
   };
 
   const handleDeleteOffer = async (id: string) => {
-    console.log(`Delete Offer clicked: ${id}`);
-    if (!window.confirm(t('confirm_delete'))) return;
-    
+    // This is now replaced by the Cancel logic
+    const offer = offers.find(o => o.id === id);
+    if (offer) {
+      setSelectedOffer(offer);
+      setShowCancelModal(true);
+    }
+  };
+
+  const archiveItem = async (offer: Offer, quantity: number, actionType: 'بيع' | 'سحب') => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
     try {
-      // Deletion sync with n8n
-      await fetch(`https://n8n.srv1168218.hstgr.cloud/webhook/add-offer?id=${id}`, {
-        method: 'DELETE',
-      });
-      fetchOffers();
-      toast.success(t('delete_success'));
+      const { error: archiveError } = await supabase
+        .from('sales_archive')
+        .insert([{
+          pharmacy_id: offer.pharmacy_id,
+          arabic_name: offer.arabic_name,
+          english_name: offer.english_name,
+          barcode: offer.barcode,
+          quantity: quantity,
+          price: offer.price,
+          discount: offer.discount,
+          created_at: new Date().toISOString(),
+          action_type: actionType
+        }]);
+
+      if (archiveError) throw archiveError;
+      return true;
+    } catch (err) {
+      console.error('Archive Error:', err);
+      toast.error('Failed to archive record');
+      return false;
+    }
+  };
+
+  const handleFullCancel = async (actionType: 'بيع' | 'سحب') => {
+    if (!selectedOffer) return;
+    setLoading(true);
+    try {
+      const success = await archiveItem(selectedOffer, selectedOffer.quantity, actionType);
+      if (success) {
+        const supabase = getSupabase();
+        if (supabase) {
+          const { error: deleteError } = await supabase
+            .from('inventory_offers')
+            .delete()
+            .eq('id', selectedOffer.id);
+          
+          if (deleteError) throw deleteError;
+          
+          toast.success('تم تحديث البيانات ونقل السجل للأرشيف بنجاح');
+          setShowCancelModal(false);
+          setSelectedOffer(null);
+          fetchOffers();
+        }
+      }
     } catch (err) {
       toast.error(t('error_generic'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateQuantity = async () => {
+    if (!selectedOffer || !quantityAction) return;
+    
+    if (quantityAction === 'add') {
+      setLoading(true);
+      try {
+        const supabase = getSupabase();
+        if (supabase) {
+          const newQty = selectedOffer.quantity + quantityValue;
+          const { error: updateError } = await supabase
+            .from('inventory_offers')
+            .update({ quantity: newQty })
+            .eq('id', selectedOffer.id);
+          
+          if (updateError) throw updateError;
+          
+          toast.success('تم تحديث الكمية بنجاح');
+          setShowQuantityModal(false);
+          setSelectedOffer(null);
+          fetchOffers();
+        }
+      } catch (err) {
+        toast.error(t('error_generic'));
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Deduct logic: first ask for amount (already in quantityValue), then show action modal
+      setShowQuantityModal(false);
+      setShowDeductActionModal(true);
+    }
+  };
+
+  const handleDeductArchive = async (actionType: 'بيع' | 'سحب') => {
+    if (!selectedOffer) return;
+    setLoading(true);
+    try {
+      const success = await archiveItem(selectedOffer, quantityValue, actionType);
+      if (success) {
+        const supabase = getSupabase();
+        if (supabase) {
+          const newQty = Math.max(0, selectedOffer.quantity - quantityValue);
+          
+          if (newQty === 0) {
+            await supabase.from('inventory_offers').delete().eq('id', selectedOffer.id);
+          } else {
+            await supabase.from('inventory_offers').update({ quantity: newQty }).eq('id', selectedOffer.id);
+          }
+          
+          toast.success('تم تحديث البيانات ونقل السجل للأرشيف بنجاح');
+          setShowDeductActionModal(false);
+          setSelectedOffer(null);
+          fetchOffers();
+        }
+      }
+    } catch (err) {
+      toast.error(t('error_generic'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOffer) return;
+    setLoading(true);
+    try {
+      const supabase = getSupabase();
+      if (supabase) {
+        const { error: updateError } = await supabase
+          .from('inventory_offers')
+          .update({ 
+            price: editData.price, 
+            discount: editData.discount 
+          })
+          .eq('id', selectedOffer.id);
+        
+        if (updateError) throw updateError;
+        
+        toast.success('تم تحديث البيانات بنجاح');
+        setShowEditModal(false);
+        setSelectedOffer(null);
+        fetchOffers();
+      }
+    } catch (err) {
+      toast.error(t('error_generic'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -193,15 +343,31 @@ export const MyOffers = () => {
                       <div className="flex justify-center gap-2">
                         <button 
                           onClick={() => {
-                            console.log(`Edit Offer clicked: ${offer.id}`);
+                            setSelectedOffer(offer);
+                            setQuantityAction(null);
+                            setQuantityValue(1);
+                            setShowQuantityModal(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-indigo-500 transition-colors"
+                          title="Update Quantity"
+                        >
+                          <PlusCircle size={18} />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedOffer(offer);
+                            setEditData({ price: offer.price, discount: offer.discount });
+                            setShowEditModal(true);
                           }}
                           className="p-2 text-slate-400 hover:text-primary transition-colors"
+                          title="Edit"
                         >
                           <Edit2 size={18} />
                         </button>
                         <button 
                           onClick={() => handleDeleteOffer(offer.id)}
                           className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                          title="Cancel"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -346,6 +512,171 @@ export const MyOffers = () => {
                 {loading ? <Loader2 className="animate-spin" /> : t('add_offer')}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && selectedOffer && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+            <div className="bg-primary p-6 text-white flex justify-between items-center">
+              <h2 className="text-xl font-bold">{t('edit')}</h2>
+              <button onClick={() => setShowEditModal(false)} className="hover:bg-white/20 p-1 rounded-lg">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleEditOffer} className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">{t('price')} ({t('egp')})</label>
+                <input
+                  type="number"
+                  required
+                  value={editData.price}
+                  onChange={(e) => setEditData({ ...editData, price: parseFloat(e.target.value) || 0 })}
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">{t('discount')} %</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  max="100"
+                  value={editData.discount}
+                  onChange={(e) => setEditData({ ...editData, discount: parseInt(e.target.value) || 0 })}
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <button
+                disabled={loading}
+                className="w-full py-4 bg-primary hover:bg-primary-dark text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 mt-4"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : t('save')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Modal (Sold or Withdrawn) */}
+      {showCancelModal && selectedOffer && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center animate-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">هل تم البيع أم تم السحب؟</h2>
+            <p className="text-slate-500 mb-8">سيتم نقل هذا العرض إلى الأرشيف</p>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => handleFullCancel('بيع')}
+                className="py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20"
+              >
+                تم البيع
+              </button>
+              <button
+                onClick={() => handleFullCancel('سحب')}
+                className="py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all"
+              >
+                تم السحب
+              </button>
+            </div>
+            <button 
+              onClick={() => setShowCancelModal(false)}
+              className="mt-6 text-slate-400 hover:text-slate-600 text-sm font-medium"
+            >
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Update Quantity Modal */}
+      {showQuantityModal && selectedOffer && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+            <div className="bg-primary p-6 text-white flex justify-between items-center">
+              <h2 className="text-xl font-bold">تحديث الكمية</h2>
+              <button onClick={() => setShowQuantityModal(false)} className="hover:bg-white/20 p-1 rounded-lg">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => setQuantityAction('add')}
+                  className={cn(
+                    "flex-1 py-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                    quantityAction === 'add' ? "border-primary bg-primary/5 text-primary" : "border-slate-100 text-slate-400"
+                  )}
+                >
+                  <PlusCircle size={32} />
+                  <span className="font-bold">إضافة</span>
+                </button>
+                <button
+                  onClick={() => setQuantityAction('deduct')}
+                  className={cn(
+                    "flex-1 py-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                    quantityAction === 'deduct' ? "border-primary bg-primary/5 text-primary" : "border-slate-100 text-slate-400"
+                  )}
+                >
+                  <MinusCircle size={32} />
+                  <span className="font-bold">خصم</span>
+                </button>
+              </div>
+
+              {quantityAction && (
+                <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">الكمية</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      max={quantityAction === 'deduct' ? selectedOffer.quantity : undefined}
+                      value={quantityValue}
+                      onChange={(e) => setQuantityValue(parseInt(e.target.value) || 1)}
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <button
+                    onClick={handleUpdateQuantity}
+                    className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20"
+                  >
+                    متابعة
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deduct Action Modal */}
+      {showDeductActionModal && selectedOffer && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center animate-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Info size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">هل تم البيع أم تم السحب؟</h2>
+            <p className="text-slate-500 mb-8">سيتم أرشفة {quantityValue} وحدة</p>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => handleDeductArchive('بيع')}
+                className="py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20"
+              >
+                تم البيع
+              </button>
+              <button
+                onClick={() => handleDeductArchive('سحب')}
+                className="py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all"
+              >
+                تم السحب
+              </button>
+            </div>
           </div>
         </div>
       )}
