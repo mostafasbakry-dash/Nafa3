@@ -37,7 +37,6 @@ export const MyRequests = () => {
 
       if (fetchError) {
         console.error('MyRequests Fetch Error:', fetchError.message, fetchError.details, fetchError.hint);
-        throw fetchError;
       }
       console.log('MyRequests Fetch Success:', data?.length, 'items');
       setRequests(data || []);

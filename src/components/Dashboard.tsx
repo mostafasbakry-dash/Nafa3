@@ -60,7 +60,6 @@ export const Dashboard = () => {
       setLoading(false);
       return;
     }
-    const pharmacy_id = parseInt(pharmacy_id_str);
 
     setLoading(true);
     setError(null);
@@ -69,13 +68,12 @@ export const Dashboard = () => {
       // Fetch Offers for this pharmacy
       const { data: offers, count: offersCount, error: offersError } = await supabase
         .from('inventory_offers')
-        .select('arabic_name, english_name, pharmacy_id, expiry_date, price, quantity, barcode, discount, created_at, id', { count: 'exact' })
-        .eq('pharmacy_id', pharmacy_id)
+        .select('*', { count: 'exact' })
+        .eq('pharmacy_id', pharmacy_id_str)
         .order('created_at', { ascending: false });
 
       if (offersError) {
         console.error('inventory_offers Fetch Error:', offersError.message, offersError.details, offersError.hint);
-        throw offersError;
       }
       console.log('inventory_offers Fetch Success:', offers?.length, 'items');
 
@@ -83,13 +81,12 @@ export const Dashboard = () => {
       // Fetch Requests for this pharmacy
       const { data: requests, count: requestsCount, error: requestsError } = await supabase
         .from('inventory_requests')
-        .select('arabic_name, english_name, pharmacy_id, quantity, barcode, created_at, id', { count: 'exact' })
-        .eq('pharmacy_id', pharmacy_id)
+        .select('*', { count: 'exact' })
+        .eq('pharmacy_id', pharmacy_id_str)
         .order('created_at', { ascending: false });
 
       if (requestsError) {
         console.error('inventory_requests Fetch Error:', requestsError.message, requestsError.details, requestsError.hint);
-        throw requestsError;
       }
       console.log('inventory_requests Fetch Success:', requests?.length, 'items');
 
@@ -107,7 +104,7 @@ export const Dashboard = () => {
       const { count: soldCount, error: soldError } = await supabase
         .from('inventory_offers')
         .select('*', { count: 'exact', head: true })
-        .eq('pharmacy_id', pharmacy_id)
+        .eq('pharmacy_id', pharmacy_id_str)
         .eq('status', 'sold');
 
       if (soldError) {

@@ -45,7 +45,6 @@ export const MyOffers = () => {
 
       if (fetchError) {
         console.error('MyOffers Fetch Error:', fetchError.message, fetchError.details, fetchError.hint);
-        throw fetchError;
       }
       console.log('MyOffers Fetch Success:', data?.length, 'items');
       setOffers(data || []);

@@ -5,20 +5,33 @@ let supabaseInstance: SupabaseClient | null = null;
 export const getSupabase = () => {
   if (supabaseInstance) return supabaseInstance;
 
-  // Hardcoded for testing as requested
-  const supabaseUrl = 'https://ncpqhkoljjikqrgtelbv.supabase.co';
-  // If the environment variable is missing, use the placeholder for the user to fill or for testing
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY_HERE';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ncpqhkoljjikqrgtelbv.supabase.co';
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseAnonKey || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY_HERE' || supabaseAnonKey === 'your_supabase_anon_key_here') {
+    console.warn('Supabase API key is missing or using placeholder. Please set VITE_SUPABASE_ANON_KEY in your environment.');
+    // We still try to initialize, but it will likely fail with 401/403
+  }
 
   if (!supabaseUrl) {
-    console.warn('Supabase URL missing.');
+    console.error('Supabase URL is missing.');
     return null;
   }
 
-  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-    db: {
-      schema: 'public'
-    }
-  });
+  try {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey || 'placeholder', {
+      db: {
+        schema: 'public'
+      },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true
+      }
+    });
+  } catch (err) {
+    console.error('Failed to initialize Supabase client:', err);
+    return null;
+  }
+  
   return supabaseInstance;
 };

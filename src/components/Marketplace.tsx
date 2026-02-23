@@ -36,7 +36,6 @@ export const Marketplace = () => {
 
       if (fetchError) {
         console.error('Marketplace Fetch Error:', fetchError.message, fetchError.details, fetchError.hint);
-        throw fetchError;
       }
       console.log('Marketplace Offers Fetch Success:', data?.length, 'items');
 
@@ -79,9 +78,9 @@ export const Marketplace = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(o => 
-        (o.english_name || "").toLowerCase().includes(q) || 
-        (o.arabic_name || "").includes(q) || 
-        (o.barcode || "").includes(q)
+        String(o.english_name || "").toLowerCase().includes(q) || 
+        String(o.arabic_name || "").includes(q) || 
+        String(o.barcode || "").includes(q)
       );
     }
 
