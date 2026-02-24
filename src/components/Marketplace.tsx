@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, Filter, SlidersHorizontal, MapPin, Percent, X, Loader2, Phone, MessageSquare, Building, ExternalLink } from 'lucide-react';
 import { Offer, Request as MarketRequest, EGYPT_CITIES } from '@/src/types';
 import { OfferCard } from '@/src/components/OfferCard';
+import { RatingModal } from '@/src/components/RatingModal';
 import { cn, getDistance } from '@/src/lib/utils';
 import { toast } from 'react-hot-toast';
 import { getSupabase } from '@/src/lib/supabase';
@@ -16,6 +17,7 @@ export const Marketplace = () => {
   const [minDiscount, setMinDiscount] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [ratingOffer, setRatingOffer] = useState<Offer | null>(null);
   const [error, setError] = useState<any>(null);
 
   const userProfile = JSON.parse(localStorage.getItem('pharmacy_profile') || '{}');
@@ -37,16 +39,40 @@ export const Marketplace = () => {
       if (fetchError) {
         console.error('Marketplace Fetch Error:', fetchError.message, fetchError.details, fetchError.hint);
       }
-      console.log('Marketplace Offers Fetch Success:', data?.length, 'items');
-
+      
       const allOffers = data || [];
 
-      // Null check logging for pharmacies
-      allOffers.forEach(offer => {
-        if (!offer.pharmacies) {
-          console.warn(`Offer ${offer.id} has no joined pharmacy data. pharmacy_id: ${offer.pharmacy_id}`);
-        }
-      });
+      // Fetch ratings and success scores for all unique pharmacies in the offers
+      const pharmacyIds = [...new Set(allOffers.map(o => o.pharmacy_id))];
+      
+      if (pharmacyIds.length > 0) {
+        // Fetch Ratings
+        const { data: ratingsData } = await supabase
+          .from('ratings')
+          .select('to_pharmacy_id, stars')
+          .in('to_pharmacy_id', pharmacyIds.map(id => Number(id)));
+
+        // Fetch Success Scores (Archive counts)
+        const { data: archiveData } = await supabase
+          .from('sales_archive')
+          .select('pharmacy_id')
+          .in('pharmacy_id', pharmacyIds.map(id => Number(id)));
+
+        // Map stats to pharmacies
+        allOffers.forEach(offer => {
+          if (offer.pharmacies) {
+            const pRatings = ratingsData?.filter(r => Number(r.to_pharmacy_id) === Number(offer.pharmacy_id)) || [];
+            const pArchive = archiveData?.filter(a => Number(a.pharmacy_id) === Number(offer.pharmacy_id)) || [];
+            
+            offer.pharmacies.rating = pRatings.length > 0 
+              ? pRatings.reduce((sum, r) => sum + r.stars, 0) / pRatings.length 
+              : 0;
+            offer.pharmacies.review_count = pRatings.length;
+            offer.pharmacies.success_score = pArchive.length;
+            offer.pharmacies.is_verified = offer.pharmacies.rating >= 4 && offer.pharmacies.success_score >= 5;
+          }
+        });
+      }
 
       // Sort by proximity to user's city
       const sorted = [...allOffers].sort((a, b) => {
@@ -190,6 +216,7 @@ export const Marketplace = () => {
               offer={offer}
               actionLabel="Contact Pharmacy"
               onAction={(o) => setSelectedOffer(o)}
+              onConfirm={(o) => setRatingOffer(o)}
             />
           ))
         ) : (
@@ -286,6 +313,17 @@ export const Marketplace = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {ratingOffer && (
+        <RatingModal
+          isOpen={!!ratingOffer}
+          onClose={() => setRatingOffer(null)}
+          ratedPharmacyId={ratingOffer.pharmacy_id}
+          ratedPharmacyName={ratingOffer.pharmacies?.pharmacy_name || ratingOffer.pharmacy_name || ''}
+          relatedItemId={ratingOffer.id}
+          onSuccess={fetchOffers}
+        />
       )}
     </div>
   );

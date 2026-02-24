@@ -10,7 +10,9 @@ import {
   Plus,
   ArrowUpRight,
   ArrowDownRight,
-  Loader2
+  Loader2,
+  ShieldCheck,
+  Star
 } from 'lucide-react';
 import { Offer, Request as MarketRequest } from '@/src/types';
 import { formatCurrency, cn } from '@/src/lib/utils';
@@ -47,7 +49,9 @@ export const Dashboard = () => {
     totalRequests: 0,
     totalOffersValue: 0,
     soldItems: 0,
-    soldTrend: 0
+    soldTrend: 0,
+    successScore: 0,
+    avgRating: 0
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [error, setError] = useState<any>(null);
@@ -71,7 +75,7 @@ export const Dashboard = () => {
       const { data: offers, count: offersCount, error: offersError } = await supabase
         .from('inventory_offers')
         .select('*', { count: 'exact' })
-        .eq('pharmacy_id', pharmacy_id_str);
+        .eq('pharmacy_id', Number(pharmacy_id_str));
 
       if (offersError) console.error('inventory_offers Error:', offersError);
 
@@ -79,21 +83,34 @@ export const Dashboard = () => {
       const { data: requests, count: requestsCount, error: requestsError } = await supabase
         .from('inventory_requests')
         .select('*', { count: 'exact' })
-        .eq('pharmacy_id', pharmacy_id_str);
+        .eq('pharmacy_id', Number(pharmacy_id_str));
 
       if (requestsError) console.error('inventory_requests Error:', requestsError);
 
-      // 3. Fetch Sales Archive for Sold Items
-      const { data: archive, error: archiveError } = await supabase
+      // 3. Fetch Sales Archive for Sold Items and Success Score
+      const { data: archive, count: archiveCount, error: archiveError } = await supabase
         .from('sales_archive')
-        .select('*')
-        .eq('pharmacy_id', pharmacy_id_str);
+        .select('*', { count: 'exact' })
+        .eq('pharmacy_id', Number(pharmacy_id_str));
 
       if (archiveError) console.error('sales_archive Error:', archiveError);
+
+      // 4. Fetch Ratings for Cumulative Rating
+      const { data: ratings, error: ratingsError } = await supabase
+        .from('ratings')
+        .select('stars')
+        .eq('to_pharmacy_id', Number(pharmacy_id_str));
+
+      if (ratingsError) console.error('ratings Error:', ratingsError);
 
       // Calculate stats
       const totalOffers = offersCount || 0;
       const totalRequests = requestsCount || 0;
+      const successScore = archiveCount || 0;
+      
+      const avgRating = ratings && ratings.length > 0
+        ? ratings.reduce((sum, r) => sum + r.stars, 0) / ratings.length
+        : 0;
       
       // Total Value Calculation: sum(price * quantity) from inventory_offers
       const totalOffersValue = (offers || []).reduce((sum, item) => {
@@ -137,7 +154,9 @@ export const Dashboard = () => {
         totalRequests,
         totalOffersValue,
         soldItems: soldQuantity,
-        soldTrend
+        soldTrend,
+        successScore,
+        avgRating
       });
 
       // Combine and sort for recent activity (Offers, Requests, and Archive)
@@ -209,7 +228,7 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard 
           title={t('stats_total_offers')} 
           value={stats.totalOffers} 
@@ -237,6 +256,18 @@ export const Dashboard = () => {
           icon={TrendingUp} 
           color="bg-amber-500"
           trend={stats.soldTrend}
+        />
+        <StatCard 
+          title={t('success_score')} 
+          value={stats.successScore} 
+          icon={ShieldCheck} 
+          color="bg-emerald-600"
+        />
+        <StatCard 
+          title={t('cumulative_rating')} 
+          value={stats.avgRating > 0 ? stats.avgRating.toFixed(1) : 'N/A'} 
+          icon={Star} 
+          color="bg-amber-400"
         />
       </div>
 

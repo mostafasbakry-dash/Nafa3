@@ -44,6 +44,10 @@ export interface Offer {
     pharmacy_name?: string;
     address?: string;
     telegram?: string;
+    rating?: number;
+    review_count?: number;
+    success_score?: number;
+    is_verified?: boolean;
   };
 }
 

@@ -8,6 +8,7 @@ import { MyOffers } from './components/MyOffers';
 import { MyRequests } from './components/MyRequests';
 import { Profile } from './components/Profile';
 import { Settings } from './components/Settings';
+import { Reports } from './components/Reports';
 import { Login } from './components/Login';
 import { Registration } from './components/Registration';
 import { useTranslation } from 'react-i18next';
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
         <Route path="/my-offers" element={<ProtectedRoute><MyOffers /></ProtectedRoute>} />
         <Route path="/my-requests" element={<ProtectedRoute><MyRequests /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         

@@ -6,6 +6,7 @@ import {
   Store, 
   PackagePlus, 
   ClipboardList, 
+  FileBarChart,
   User, 
   Settings, 
   LogOut, 
@@ -50,6 +51,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: '/marketplace', icon: Store, label: t('marketplace') },
     { to: '/my-offers', icon: PackagePlus, label: t('my_offers') },
     { to: '/my-requests', icon: ClipboardList, label: t('my_requests') },
+    { to: '/reports', icon: FileBarChart, label: t('reports') },
     { to: '/profile', icon: User, label: t('profile') },
     { to: '/settings', icon: Settings, label: t('settings') },
   ];

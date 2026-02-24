@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Camera, Mail, Phone, MapPin, Building, CreditCard, Send, Loader2, ShieldCheck, Lock } from 'lucide-react';
+import { User, Camera, Mail, Phone, MapPin, Building, CreditCard, Send, Loader2, ShieldCheck, Lock, Star, TrendingUp } from 'lucide-react';
 import { EGYPT_CITIES } from '@/src/types';
 import { toast } from 'react-hot-toast';
+import { getSupabase } from '@/src/lib/supabase';
+import { cn } from '@/src/lib/utils';
 
 export const Profile = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({ avgRating: 0, reviewCount: 0, successScore: 0 });
   const [profile, setProfile] = useState(() => {
     const saved = localStorage.getItem('pharmacy_profile');
     const parsed = saved ? JSON.parse(saved) : {};
@@ -20,6 +23,40 @@ export const Profile = () => {
       profile_pic: parsed.profile_pic || ''
     };
   });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const pharmacy_id = localStorage.getItem('pharmacy_id');
+      if (!pharmacy_id) return;
+
+      const supabase = getSupabase();
+      if (!supabase) return;
+
+      // Fetch Success Score
+      const { count: archiveCount } = await supabase
+        .from('sales_archive')
+        .select('*', { count: 'exact', head: true })
+        .eq('pharmacy_id', Number(pharmacy_id));
+
+      // Fetch Ratings
+      const { data: ratings } = await supabase
+        .from('ratings')
+        .select('stars')
+        .eq('to_pharmacy_id', Number(pharmacy_id));
+
+      const avgRating = ratings && ratings.length > 0
+        ? ratings.reduce((sum, r) => sum + r.stars, 0) / ratings.length
+        : 0;
+
+      setStats({
+        avgRating,
+        reviewCount: ratings?.length || 0,
+        successScore: archiveCount || 0
+      });
+    };
+
+    fetchStats();
+  }, []);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,10 +119,45 @@ export const Profile = () => {
             </div>
             <h2 className="text-xl font-bold text-slate-900">{profile.name}</h2>
             <p className="text-slate-500 text-sm mb-4">{profile.city}, Egypt</p>
-            <div className="flex items-center justify-center gap-2 text-emerald-600 font-bold text-xs uppercase tracking-wider">
-              <ShieldCheck size={16} />
-              Verified Pharmacy
+            
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                <div className="flex flex-col items-center justify-center gap-1 mb-1">
+                  <div className="flex items-center gap-0.5 text-amber-500">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={14}
+                        className={cn(
+                          star <= Math.round(stats.avgRating) 
+                            ? "fill-amber-400 text-amber-400" 
+                            : "text-slate-200"
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-lg font-bold text-slate-900">{stats.avgRating > 0 ? stats.avgRating.toFixed(1) : '0.0'}</span>
+                    <span className="text-xs text-slate-400">({stats.reviewCount})</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 uppercase font-bold text-center">{t('cumulative_rating')}</p>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                <div className="flex items-center justify-center gap-1 text-emerald-600 mb-1">
+                  <TrendingUp size={16} />
+                  <span className="text-lg font-bold">{stats.successScore}</span>
+                </div>
+                <p className="text-[10px] text-slate-400 uppercase font-bold">{t('success_score')}</p>
+              </div>
             </div>
+
+            {stats.avgRating >= 4 && stats.successScore >= 5 && (
+              <div className="flex items-center justify-center gap-2 text-emerald-600 font-bold text-xs uppercase tracking-wider">
+                <ShieldCheck size={16} />
+                {t('verified_pharmacy')}
+              </div>
+            )}
           </div>
 
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
