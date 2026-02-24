@@ -39,7 +39,7 @@ const resources = {
       "stats_total_offers": "Total Offers",
       "stats_total_requests": "Total Requests",
       "stats_total_value": "Total Value",
-      "stats_sold_items": "Sold Items",
+      "stats_sold_items": "Sold Quantity",
       "egp": "EGP",
       "near_expiry": "Near Expiry",
       "warning_duplicate": "A drug with the same barcode and expiry date already exists.",
@@ -52,7 +52,12 @@ const resources = {
       "barcode": "Barcode",
       "quantity": "Quantity",
       "price": "Price",
-      "login_email_not_found": "We couldn't find an account with this email. We'd love to have you with us! Please register first via the \"Registration\" button on the home page to access the platform."
+      "login_email_not_found": "We couldn't find an account with this email. We'd love to have you with us! Please register first via the \"Registration\" button on the home page to access the platform.",
+      "archive_internal_sale": "Internal Sale",
+      "archive_transfer": "Transfer",
+      "archive_purchased": "Purchased",
+      "archive_transferred": "Transferred",
+      "archive_question": "What happened to this item?"
     }
   },
   ar: {
@@ -91,7 +96,7 @@ const resources = {
       "stats_total_offers": "إجمالي العروض",
       "stats_total_requests": "إجمالي الطلبات",
       "stats_total_value": "إجمالي القيمة",
-      "stats_sold_items": "العناصر المباعة",
+      "stats_sold_items": "الكمية المباعة",
       "egp": "ج.م",
       "near_expiry": "قريب الانتهاء",
       "warning_duplicate": "يوجد دواء بنفس الباركود وتاريخ الانتهاء بالفعل.",
@@ -104,7 +109,12 @@ const resources = {
       "barcode": "الباركود",
       "quantity": "الكمية",
       "price": "السعر",
-      "login_email_not_found": "نعتذر منك، يبدو أن هذا البريد الإلكتروني غير مسجل لدينا حالياً. يسعدنا انضمامك إلينا عبر إنشاء حساب جديد أولاً من خلال زر \"التسجيل\" (Registration) في الصفحة الرئيسية."
+      "login_email_not_found": "نعتذر منك، يبدو أن هذا البريد الإلكتروني غير مسجل لدينا حالياً. يسعدنا انضمامك إلينا عبر إنشاء حساب جديد أولاً من خلال زر \"التسجيل\" (Registration) في الصفحة الرئيسية.",
+      "archive_internal_sale": "بيع داخلي",
+      "archive_transfer": "تحويل",
+      "archive_purchased": "تم الشراء",
+      "archive_transferred": "تم التحويل",
+      "archive_question": "ماذا حدث لهذا الصنف؟"
     }
   }
 };

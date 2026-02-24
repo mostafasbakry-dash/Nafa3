@@ -127,9 +127,9 @@ export const MyOffers = () => {
     }
   };
 
-  const archiveItem = async (offer: Offer, quantity: number, actionType: 'بيع' | 'سحب') => {
+  const archiveItem = async (offer: Offer, quantity: number, actionType: string) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) return false;
 
     try {
       const { error: archiveError } = await supabase
@@ -146,16 +146,20 @@ export const MyOffers = () => {
           action_type: actionType
         }]);
 
-      if (archiveError) throw archiveError;
+      if (archiveError) {
+        console.error('Archive Error:', archiveError);
+        toast.error('Failed to archive record: ' + archiveError.message);
+        return false;
+      }
       return true;
     } catch (err) {
-      console.error('Archive Error:', err);
+      console.error('Archive Exception:', err);
       toast.error('Failed to archive record');
       return false;
     }
   };
 
-  const handleFullCancel = async (actionType: 'بيع' | 'سحب') => {
+  const handleFullCancel = async (actionType: string) => {
     if (!selectedOffer) return;
     setLoading(true);
     try {
@@ -168,7 +172,11 @@ export const MyOffers = () => {
             .delete()
             .eq('id', selectedOffer.id);
           
-          if (deleteError) throw deleteError;
+          if (deleteError) {
+            console.error('Delete Error:', deleteError);
+            toast.error('Failed to remove item from active list');
+            return;
+          }
           
           toast.success('تم تحديث البيانات ونقل السجل للأرشيف بنجاح');
           setShowCancelModal(false);
@@ -216,7 +224,7 @@ export const MyOffers = () => {
     }
   };
 
-  const handleDeductArchive = async (actionType: 'بيع' | 'سحب') => {
+  const handleDeductArchive = async (actionType: string) => {
     if (!selectedOffer) return;
     setLoading(true);
     try {
@@ -227,9 +235,11 @@ export const MyOffers = () => {
           const newQty = Math.max(0, selectedOffer.quantity - quantityValue);
           
           if (newQty === 0) {
-            await supabase.from('inventory_offers').delete().eq('id', selectedOffer.id);
+            const { error: deleteError } = await supabase.from('inventory_offers').delete().eq('id', selectedOffer.id);
+            if (deleteError) throw deleteError;
           } else {
-            await supabase.from('inventory_offers').update({ quantity: newQty }).eq('id', selectedOffer.id);
+            const { error: updateError } = await supabase.from('inventory_offers').update({ quantity: newQty }).eq('id', selectedOffer.id);
+            if (updateError) throw updateError;
           }
           
           toast.success('تم تحديث البيانات ونقل السجل للأرشيف بنجاح');
@@ -560,27 +570,33 @@ export const MyOffers = () => {
         </div>
       )}
 
-      {/* Cancel Modal (Sold or Withdrawn) */}
+      {/* Cancel Modal (Archive Actions) */}
       {showCancelModal && selectedOffer && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center animate-in zoom-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center animate-in zoom-in duration-200 relative">
+            <button 
+              onClick={() => setShowCancelModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
+            >
+              <X size={20} />
+            </button>
             <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle size={32} />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">هل تم البيع أم تم السحب؟</h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">{t('archive_question')}</h2>
             <p className="text-slate-500 mb-8">سيتم نقل هذا العرض إلى الأرشيف</p>
             <div className="grid grid-cols-2 gap-4">
               <button
-                onClick={() => handleFullCancel('بيع')}
+                onClick={() => handleFullCancel(t('archive_internal_sale'))}
                 className="py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20"
               >
-                تم البيع
+                {t('archive_internal_sale')}
               </button>
               <button
-                onClick={() => handleFullCancel('سحب')}
-                className="py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all"
+                onClick={() => handleFullCancel(t('archive_transfer'))}
+                className="py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20"
               >
-                تم السحب
+                {t('archive_transfer')}
               </button>
             </div>
             <button 
@@ -657,26 +673,38 @@ export const MyOffers = () => {
       {/* Deduct Action Modal */}
       {showDeductActionModal && selectedOffer && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center animate-in zoom-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center animate-in zoom-in duration-200 relative">
+            <button 
+              onClick={() => setShowDeductActionModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
+            >
+              <X size={20} />
+            </button>
             <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
               <Info size={32} />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">هل تم البيع أم تم السحب؟</h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">{t('archive_question')}</h2>
             <p className="text-slate-500 mb-8">سيتم أرشفة {quantityValue} وحدة</p>
             <div className="grid grid-cols-2 gap-4">
               <button
-                onClick={() => handleDeductArchive('بيع')}
+                onClick={() => handleDeductArchive(t('archive_internal_sale'))}
                 className="py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20"
               >
-                تم البيع
+                {t('archive_internal_sale')}
               </button>
               <button
-                onClick={() => handleDeductArchive('سحب')}
-                className="py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all"
+                onClick={() => handleDeductArchive(t('archive_transfer'))}
+                className="py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20"
               >
-                تم السحب
+                {t('archive_transfer')}
               </button>
             </div>
+            <button 
+              onClick={() => setShowDeductActionModal(false)}
+              className="mt-6 text-slate-400 hover:text-slate-600 text-sm font-medium"
+            >
+              {t('cancel')}
+            </button>
           </div>
         </div>
       )}

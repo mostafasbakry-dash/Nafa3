@@ -46,7 +46,8 @@ export const Dashboard = () => {
     totalOffers: 0,
     totalRequests: 0,
     totalOffersValue: 0,
-    soldItems: 0
+    soldItems: 0,
+    soldTrend: 0
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [error, setError] = useState<any>(null);
@@ -101,16 +102,42 @@ export const Dashboard = () => {
         return sum + (price * qty);
       }, 0);
       
-      // Sold Items Counter: sum(quantity) from sales_archive where action_type = 'بيع'
-      const soldItems = (archive || [])
-        .filter(item => item.action_type === 'بيع')
+      // Sold Quantity Counter: sum(quantity) from sales_archive where action_type matches Offer labels
+      // Only items archived from 'Offers' count towards 'Sold Quantity'
+      const offerSaleLabels = ['بيع داخلي', 'Internal Sale', 'تحويل', 'Transfer', 'بيع'];
+      const filteredArchive = (archive || []).filter(item => offerSaleLabels.includes(item.action_type));
+      
+      const soldQuantity = filteredArchive.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+
+      // Trend Calculation for Sold Quantity
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+      const currentWeekSales = filteredArchive
+        .filter(item => new Date(item.created_at) >= sevenDaysAgo)
         .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+
+      const previousWeekSales = filteredArchive
+        .filter(item => {
+          const dt = new Date(item.created_at);
+          return dt >= fourteenDaysAgo && dt < sevenDaysAgo;
+        })
+        .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+
+      let soldTrend = 0;
+      if (previousWeekSales > 0) {
+        soldTrend = Math.round(((currentWeekSales - previousWeekSales) / previousWeekSales) * 100);
+      } else if (currentWeekSales > 0) {
+        soldTrend = 100; // 100% growth if starting from zero
+      }
 
       setStats({
         totalOffers,
         totalRequests,
         totalOffersValue,
-        soldItems
+        soldItems: soldQuantity,
+        soldTrend
       });
 
       // Combine and sort for recent activity (Offers, Requests, and Archive)
@@ -147,7 +174,12 @@ export const Dashboard = () => {
     if (item.type === 'offer') return 'New Offer';
     if (item.type === 'request') return 'New Request';
     if (item.type === 'archive') {
-      return item.action_type === 'بيع' ? 'Item Sold' : 'Item Withdrawn';
+      const offerSaleLabels = ['بيع داخلي', 'Internal Sale', 'تحويل', 'Transfer', 'بيع'];
+      const requestLabels = ['تم الشراء', 'Purchased', 'تم التحويل', 'Transferred'];
+      
+      if (offerSaleLabels.includes(item.action_type)) return 'Offer Sold/Transferred';
+      if (requestLabels.includes(item.action_type)) return 'Request Completed';
+      return 'Item Archived';
     }
     return 'Activity';
   };
@@ -204,6 +236,7 @@ export const Dashboard = () => {
           value={stats.soldItems} 
           icon={TrendingUp} 
           color="bg-amber-500"
+          trend={stats.soldTrend}
         />
       </div>
 
